@@ -182,11 +182,6 @@ void Rebus::ping_handler(httproto_protocol *request, QLocalSocket *conn)
 {
     switch (request->method) {
     case HTTPROTO_GET:
-//        conn->write("HTTP/1.1 200 OK\r\n"
-//                    "Content-Type: application/json\r\n"
-//                    "Content-Length: 6\r\n"
-//                    "\r\n"
-//                    "\"pong\"");
         this->response(conn, "\"pong\"");
         break;
     default:
@@ -204,11 +199,7 @@ void Rebus::version_handler(httproto_protocol *request, QLocalSocket *conn)
         + "." + QByteArray::number(REBUS_VERSION_PATCH) + "\"";
     switch (request->method) {
     case HTTPROTO_GET:
-        conn->write("HTTP/1.1 200 OK\r\n"
-                    "Content-Type: application/json\r\n"
-                    "Content-Length: " + QByteArray::number(version_str.length()) + "\r\n"
-                    "\r\n"
-                    + version_str);
+        this->response(conn, version_str);
         break;
     default:
         this->error_405(request, conn, { "GET", });
@@ -256,10 +247,7 @@ void Rebus::kill_handler(httproto_protocol *request, QLocalSocket *conn)
 {
     switch (request->method) {
     case HTTPROTO_POST:
-        conn->write("HTTP/1.1 202 Accepted\r\n"
-                    "Content-Type: application/json\r\n"
-                    "Content-Length: 0\r\n"
-                    "\r\n");
+        this->response(conn, "", HTTPROTO_ACCEPTED);
         qApp->quit();
         break;
     default:
@@ -276,24 +264,15 @@ void Rebus::error_400(httproto_protocol *request, QLocalSocket *conn, const QStr
                            "  \"detail\": \"");
     detail_json += detail.toUtf8() + "\"";
     detail_json += "}";
-    QByteArray length = QByteArray::number(detail_json.length());
 
-    conn->write("HTTP/1.1 400 Bad Request\r\n"
-                "Content-Type: application/json\r\n"
-                "Content-Length: " + length + "\r\n"
-                "\r\n"
-                + detail_json);
+    this->response(conn, detail_json, 400);
 }
 
 void Rebus::error_404(struct httproto_protocol *request, QLocalSocket *conn)
 {
-    QString detail("{ \"detail\": \"No route to " + QString(httproto_protocol_get_path(request)) + "\"");
-    QString length = QString::number(detail.length());
-    conn->write("HTTP/1.1 404 Not Found\r\n"
-                "Content-Type: application/json\r\n"
-                "Content-Length: " + length.toLocal8Bit() + "\r\n"
-                "\r\n"
-                + detail.toLocal8Bit());
+    QByteArray detail("{ \"detail\": \"No route to " + QByteArray(httproto_protocol_get_path(request)) + "\"");
+
+    this->response(conn, detail, 404);
 }
 
 void Rebus::error_405(httproto_protocol *request, QLocalSocket *conn, QList<QString> allow)

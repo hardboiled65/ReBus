@@ -311,9 +311,20 @@ void Rebus::response(QLocalSocket *conn, const QByteArray& data,
     QByteArray server = "ReBus " + QByteArray::number(REBUS_VERSION_MAJOR) + "." + QByteArray::number(REBUS_VERSION_MINOR);
     QByteArray length = QByteArray::number(data.length());
 
+    // Make headers.
+    QByteArray headers_str = "";
+
+    for (int i = 0; i < headers.keys().length(); ++i) {
+        QString key = headers.keys()[i];
+        QString value = headers.value(key);
+
+        headers_str += key + ": " + value + "\r\n";
+    }
+
     conn->write("HTTP/1.1 " + status_str + " " + status_desc + "\r\n"
                 "Content-Type: application/json\r\n"
                 "Server: " + server + "\r\n"
+                + headers_str +
                 "Content-Length: " + length + "\r\n"
                 "\r\n"
                 + data);

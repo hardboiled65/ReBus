@@ -40,6 +40,9 @@ public:
     void error_404(httproto_protocol *request, QLocalSocket *conn);
     void error_405(httproto_protocol *request, QLocalSocket *conn, QList<QString> allow);
 
+    void response(QLocalSocket *conn, const QByteArray& data,
+            unsigned int status_code = 200, QMap<QString, QString> headers = {});
+
     // Unix signal handlers
     static void sigHupHandler(int);
     static void sigIntHandler(int);

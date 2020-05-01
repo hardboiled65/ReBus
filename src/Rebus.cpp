@@ -4,7 +4,8 @@
 #include <QSocketNotifier>
 #include <QCoreApplication>
 #include <QJsonDocument>
-#include <QJsonValue>
+#include <QJsonObject>
+#include <QUuid>
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -14,6 +15,8 @@
 #include <unistd.h>
 
 #include <httproto/httproto.h>
+
+#include "Host.h"
 
 namespace rebus {
 
@@ -179,11 +182,12 @@ void Rebus::ping_handler(httproto_protocol *request, QLocalSocket *conn)
 {
     switch (request->method) {
     case HTTPROTO_GET:
-        conn->write("HTTP/1.1 200 OK\r\n"
-                    "Content-Type: application/json\r\n"
-                    "Content-Length: 6\r\n"
-                    "\r\n"
-                    "\"pong\"");
+//        conn->write("HTTP/1.1 200 OK\r\n"
+//                    "Content-Type: application/json\r\n"
+//                    "Content-Length: 6\r\n"
+//                    "\r\n"
+//                    "\"pong\"");
+        this->response(conn, "\"pong\"");
         break;
     default:
         QList<QString> allow;
@@ -220,10 +224,24 @@ void Rebus::hosts_handler(httproto_protocol *request, QLocalSocket *conn)
     case HTTPROTO_POST: {
         QJsonParseError err;
         QJsonDocument payload = QJsonDocument::fromJson(request->content, &err);
+        // JSON parse error.
         if (err.error != QJsonParseError::NoError) {
             fprintf(stderr, "[Warning] JSON parse error. %s\n", err.errorString().toUtf8().constData());
             this->error_400(request, conn, "Invalid JSON format.");
+            break;
         }
+        // Is not object.
+        if (!payload.isObject()) {
+            this->error_400(request, conn, "Data must be an object.");
+            break;
+        }
+        // Field omitted.
+        if (!payload.object().keys().contains("host_name")) {
+            this->error_400(request, conn, "Field 'host_name' omitted.");
+            break;
+        }
+        Host new_host(payload.object().value("host_name").toString());
+        new_host.setUuid(QUuid::createUuid().toString(QUuid::StringFormat::WithoutBraces));
         break;
     }
     case HTTPROTO_DELETE:
@@ -288,6 +306,22 @@ void Rebus::error_405(httproto_protocol *request, QLocalSocket *conn, QList<QStr
                 "Content-Length: 0\r\n"
                 "Allow: " + allow_list +
                 "\r\n");
+}
+
+void Rebus::response(QLocalSocket *conn, const QByteArray& data,
+        unsigned int status_code, QMap<QString, QString> headers)
+{
+    QByteArray status_str = QByteArray::number(status_code);
+    QByteArray status_desc = httproto_status_code_to_string((enum httproto_status_code)status_code);
+    QByteArray server = "ReBus " + QByteArray::number(REBUS_VERSION_MAJOR) + "." + QByteArray::number(REBUS_VERSION_MINOR);
+    QByteArray length = QByteArray::number(data.length());
+
+    conn->write("HTTP/1.1 " + status_str + " " + status_desc + "\r\n"
+                "Content-Type: application/json\r\n"
+                "Server: " + server + "\r\n"
+                "Content-Length: " + length + "\r\n"
+                "\r\n"
+                + data);
 }
 
 } // namespace rebus

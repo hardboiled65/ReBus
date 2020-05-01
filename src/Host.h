@@ -15,6 +15,9 @@ public:
     const QString& uuid() const;
     void setUuid(const QString& uuid);
 
+    bool operator==(const char *host_name);
+    bool operator!=(const char *host_name);
+
 private:
     QString m_name;
     QString m_uuid;

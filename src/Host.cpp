@@ -31,4 +31,14 @@ void Host::setUuid(const QString &uuid)
     }
 }
 
+bool Host::operator==(const char *host_name)
+{
+    return this->name() == host_name;
+}
+
+bool Host::operator!=(const char *host_name)
+{
+    return !(*this == host_name);
+}
+
 } // namespace rebus

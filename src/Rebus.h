@@ -5,6 +5,8 @@
 
 #include <QLocalServer>
 
+#include "Host.h"
+
 #define REBUS_VERSION_MAJOR 0
 #define REBUS_VERSION_MINOR 1
 #define REBUS_VERSION_PATCH 0
@@ -39,9 +41,14 @@ public:
     void error_400(httproto_protocol *request, QLocalSocket *conn, const QString& detail);
     void error_404(httproto_protocol *request, QLocalSocket *conn);
     void error_405(httproto_protocol *request, QLocalSocket *conn, QList<QString> allow);
+    void error_409(httproto_protocol *request, QLocalSocket *conn, const QString& detail);
 
     void response(QLocalSocket *conn, const QByteArray& data,
             unsigned int status_code = 200, QMap<QString, QString> headers = {});
+
+    // Hosts helpers
+    bool hostExists(const QString& hostName);
+    QString getHostUuid(const QString& hostName);
 
     // Unix signal handlers
     static void sigHupHandler(int);
@@ -49,6 +56,7 @@ public:
 
 private:
     QLocalServer m_server;
+    QList<Host> m_hosts;
 
 signals:
 

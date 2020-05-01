@@ -16,8 +16,6 @@
 
 #include <httproto/httproto.h>
 
-#include "Host.h"
-
 namespace rebus {
 
 int Rebus::sigHupFd[2];
@@ -231,8 +229,15 @@ void Rebus::hosts_handler(httproto_protocol *request, QLocalSocket *conn)
             this->error_400(request, conn, "Field 'host_name' omitted.");
             break;
         }
-        Host new_host(payload.object().value("host_name").toString());
+        // Duplicate check.
+        QString host_name = payload.object().value("host_name").toString();
+        if (this->hostExists(host_name)) {
+            this->error_409(request, conn, "Host already exists.");
+            break;
+        }
+        Host new_host(host_name);
         new_host.setUuid(QUuid::createUuid().toString(QUuid::StringFormat::WithoutBraces));
+        this->m_hosts.append(new_host);
         break;
     }
     case HTTPROTO_DELETE:
@@ -287,6 +292,17 @@ void Rebus::error_405(httproto_protocol *request, QLocalSocket *conn, QList<QStr
                 "\r\n");
 }
 
+void Rebus::error_409(httproto_protocol *request, QLocalSocket *conn, const QString &detail)
+{
+    (void)request;
+
+    QByteArray detail_json("{"
+                           "  \"detail\": \"" + detail.toUtf8() + "\""
+                           "}");
+
+    this->response(conn, detail_json, 409);
+}
+
 void Rebus::response(QLocalSocket *conn, const QByteArray& data,
         unsigned int status_code, QMap<QString, QString> headers)
 {
@@ -301,6 +317,31 @@ void Rebus::response(QLocalSocket *conn, const QByteArray& data,
                 "Content-Length: " + length + "\r\n"
                 "\r\n"
                 + data);
+}
+
+bool Rebus::hostExists(const QString& hostName)
+{
+    for (auto&& host: this->m_hosts) {
+        if (host == hostName.toUtf8()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+QString Rebus::getHostUuid(const QString& hostName)
+{
+    Host *pHost = nullptr;
+    for (auto&& host: this->m_hosts) {
+        if (host== hostName.toUtf8()) {
+            pHost = &host;
+            break;
+        }
+    }
+    if (pHost == nullptr) {
+        return "";
+    }
+    return pHost->uuid();
 }
 
 } // namespace rebus

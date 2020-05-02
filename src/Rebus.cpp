@@ -169,8 +169,40 @@ void Rebus::route_rebus(httproto_protocol *request, QLocalSocket *conn)
 
 void Rebus::route_proxy(httproto_protocol *request, QLocalSocket *conn)
 {
-    (void)request;
-    (void)conn;
+    QString host_name = httproto_protocol_get_header(request, "Host");
+    // Host not exists.
+    if (!this->hostExists(host_name)) {
+        QByteArray detail_json("{"
+                               "  \"detail\": \"Host '" + host_name.toUtf8() + "' not exists.\""
+                               "}");
+        this->response(conn, detail_json, 404);
+    }
+    // Get host socket path.
+    QString socket_path = QString(getenv("XDG_RUNTIME_DIR")) + "/" + host_name
+        + "/" + this->getHostUuid(host_name);
+
+    QLocalSocket host_socket;
+    QObject::connect(&host_socket, &QLocalSocket::connected,
+                     this, [this, &host_socket, conn, request]() {
+        // Wait for timeout.
+        host_socket.waitForBytesWritten(3000);
+        // Send request.
+        this->request(
+            &host_socket,
+            QByteArray(request->content, request->content_length),
+            httproto_protocol_get_uri(request),
+            request->method
+        );
+        // Wait for timeout.
+        host_socket.waitForReadyRead(3000);
+        // Get response.
+        QByteArray resp = host_socket.readAll();
+        httproto_protocol *response = httproto_protocol_create(HTTPROTO_RESPONSE);
+        httproto_protocol_parse(response, resp, resp.length());
+        // Send response.
+        this->response(conn, QByteArray(response->content, request->content_length), response->status_code);
+    });
+    host_socket.connectToServer(socket_path);
 }
 
 //====================
@@ -212,7 +244,9 @@ void Rebus::hosts_handler(httproto_protocol *request, QLocalSocket *conn)
         break;
     case HTTPROTO_POST: {
         QJsonParseError err;
-        QJsonDocument payload = QJsonDocument::fromJson(request->content, &err);
+        QJsonDocument payload = QJsonDocument::fromJson(
+            QByteArray(request->content, request->content_length), &err
+        );
         // JSON parse error.
         if (err.error != QJsonParseError::NoError) {
             fprintf(stderr, "[Warning] JSON parse error. %s\n", err.errorString().toUtf8().constData());
@@ -329,6 +363,29 @@ void Rebus::response(QLocalSocket *conn, const QByteArray& data,
     conn->write("HTTP/1.1 " + status_str + " " + status_desc + "\r\n"
                 "Content-Type: application/json\r\n"
                 "Server: " + server + "\r\n"
+                + headers_str +
+                "Content-Length: " + length + "\r\n"
+                "\r\n"
+                + data);
+}
+
+void Rebus::request(QLocalSocket *conn, const QByteArray &data, const QByteArray& uri,
+        enum httproto_request_method method, QMap<QString, QString> headers)
+{
+    QByteArray length = QByteArray::number(data.length());
+
+    // Make headers.
+    QByteArray method_str = httproto_request_method_to_string(method);
+    QByteArray headers_str = "";
+
+    for (int i = 0; i < headers.keys().length(); ++i) {
+        QString key = headers.keys()[i];
+        QString value = headers.value(key);
+
+        headers_str += key + ": " + value + "\r\n";
+    }
+
+    conn->write(method_str + " " + uri + " HTTP/1.1\r\n"
                 + headers_str +
                 "Content-Length: " + length + "\r\n"
                 "\r\n"

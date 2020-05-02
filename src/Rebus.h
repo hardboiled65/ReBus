@@ -5,6 +5,8 @@
 
 #include <QLocalServer>
 
+#include <httproto/httproto.h>
+
 #include "Host.h"
 
 #define REBUS_VERSION_MAJOR 0
@@ -45,6 +47,8 @@ public:
 
     void response(QLocalSocket *conn, const QByteArray& data,
             unsigned int status_code = 200, QMap<QString, QString> headers = {});
+    void request(QLocalSocket *conn, const QByteArray& data, const QByteArray& uri,
+            enum httproto_request_method method, QMap<QString, QString> headers = {});
 
     // Hosts helpers
     bool hostExists(const QString& hostName);

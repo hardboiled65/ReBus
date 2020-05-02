@@ -139,7 +139,11 @@ void Rebus::onConnection()
 void Rebus::route(struct httproto_protocol *request, QLocalSocket *conn)
 {
     const char *host = httproto_protocol_get_header(request, "Host");
-    fprintf(stdout, "Host: %s\n", host);
+    fprintf(stdout, "Host: %s, %s %s\n",
+        host,
+        httproto_request_method_to_string(request->method),
+        httproto_protocol_get_uri(request)
+    );
     if (host == QString("rebus")) {
         route_rebus(request, conn);
     } else {

@@ -277,7 +277,7 @@ void Rebus::hosts_handler(httproto_protocol *request, QLocalSocket *conn)
         new_host.setUuid(QUuid::createUuid().toString(QUuid::StringFormat::WithoutBraces));
         this->m_hosts.append(new_host);
         QByteArray data("{"
-                        "  \"host_name\": \"" + new_host.name().toUtf8() + "\""
+                        "  \"host_name\": \"" + new_host.name().toUtf8() + "\","
                         "  \"uuid\": \"" + new_host.uuid().toUtf8() + "\""
                         "}");
         this->response(conn, data, HTTPROTO_CREATED);

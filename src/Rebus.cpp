@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QUuid>
 
 #include <stdio.h>
@@ -182,13 +183,16 @@ void Rebus::route_proxy(httproto_protocol *request, QLocalSocket *conn)
         this->response(conn, detail_json, 404);
     }
     // Get host socket path.
-    QString socket_path = QString(getenv("XDG_RUNTIME_DIR")) + "/" + host_name
-        + "/" + this->getHostUuid(host_name);
+    QString socket_path = QString(getenv("XDG_RUNTIME_DIR")) + "/rebus/"
+        + this->getHostUuid(host_name);
 
     QLocalSocket host_socket;
-    QObject::connect(&host_socket, &QLocalSocket::connected,
-                     this, [this, &host_socket, conn, request]() {
-        // Wait for timeout.
+    host_socket.connectToServer(socket_path);
+    // Wait for timeout.
+    if (!host_socket.waitForConnected(1000)) {
+        fprintf(stderr, "CONNECTION TIMEOUT!\n");
+        qDebug() << host_socket.error();
+    }
         host_socket.waitForBytesWritten(3000);
         // Send request.
         this->request(
@@ -201,12 +205,12 @@ void Rebus::route_proxy(httproto_protocol *request, QLocalSocket *conn)
         host_socket.waitForReadyRead(3000);
         // Get response.
         QByteArray resp = host_socket.readAll();
+        fprintf(stderr, "resp = %s\n", resp.constData());
         httproto_protocol *response = httproto_protocol_create(HTTPROTO_RESPONSE);
         httproto_protocol_parse(response, resp, resp.length());
+        fprintf(stderr, "parsed status: %d\n", response->status_code);
         // Send response.
         this->response(conn, QByteArray(response->content, request->content_length), response->status_code);
-    });
-    host_socket.connectToServer(socket_path);
 }
 
 //====================
@@ -244,8 +248,19 @@ void Rebus::version_handler(httproto_protocol *request, QLocalSocket *conn)
 void Rebus::hosts_handler(httproto_protocol *request, QLocalSocket *conn)
 {
     switch (request->method) {
-    case HTTPROTO_GET:
+    case HTTPROTO_GET: {
+        QJsonDocument json_doc;
+        QJsonArray json_arr;
+        for (auto&& host: this->m_hosts) {
+            QJsonObject json_obj;
+            json_obj["host_name"] = host.name();
+            json_obj["uuid"] = host.uuid();
+            json_arr.append(json_obj);
+        }
+        json_doc.setArray(json_arr);
+        this->response(conn, json_doc.toJson(), 200);
         break;
+    }
     case HTTPROTO_POST: {
         QJsonParseError err;
         QJsonDocument payload = QJsonDocument::fromJson(

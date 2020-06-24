@@ -157,13 +157,14 @@ void Rebus::route(struct httproto_protocol *request, QLocalSocket *conn)
 
 void Rebus::route_rebus(httproto_protocol *request, QLocalSocket *conn)
 {
+    QString path = httproto_protocol_get_path(request);
     if (httproto_protocol_get_path(request) == QString("/")) {
         this->ping_handler(request, conn);
     } else if (httproto_protocol_get_path(request) == QString("/ping")) {
         this->ping_handler(request, conn);
     } else if (httproto_protocol_get_path(request) == QString("/version")) {
         this->version_handler(request, conn);
-    } else if (httproto_protocol_get_path(request) == QString("/hosts")) {
+    } else if (path.startsWith("/hosts")) {
         this->hosts_handler(request, conn);
     } else if (httproto_protocol_get_path(request) == QString("/kill")) {
         this->kill_handler(request, conn);
@@ -298,8 +299,13 @@ void Rebus::hosts_handler(httproto_protocol *request, QLocalSocket *conn)
         this->response(conn, data, HTTPROTO_CREATED);
         break;
     }
-    case HTTPROTO_DELETE:
+    case HTTPROTO_DELETE: {
+        QString path = httproto_protocol_get_path(request);
+        QList<QString> parts = path.split("/");
+        fprintf(stdout, "Delete host %s\n", static_cast<const char*>(parts.last().toUtf8()));
+        this->deleteHost(parts.last());
         break;
+    }
     default:
         this->error_405(request, conn, { "GET", "POST", "DELETE" });
         break;
@@ -434,6 +440,19 @@ QString Rebus::getHostUuid(const QString& hostName)
         return "";
     }
     return pHost->uuid();
+}
+
+void Rebus::deleteHost(const QString &hostName)
+{
+    int idx = 0;
+    for (; idx < this->m_hosts.length(); ++idx) {
+        if (this->m_hosts[idx] == hostName.toUtf8()) {
+            break;
+        }
+    }
+    if (idx != this->m_hosts.length()) {
+        this->m_hosts.removeAt(idx);
+    }
 }
 
 } // namespace rebus

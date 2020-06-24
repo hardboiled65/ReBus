@@ -53,6 +53,7 @@ public:
     // Hosts helpers
     bool hostExists(const QString& hostName);
     QString getHostUuid(const QString& hostName);
+    void deleteHost(const QString& hostName);
 
     // Unix signal handlers
     static void sigHupHandler(int);

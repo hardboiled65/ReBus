@@ -60,4 +60,5 @@ Get hosts, post a new host or delete a host.
 ### /rebus/kill
 Kill the running ReBus process.
 | Method | Response | Status |
+| ------ | -------- | ------ |
 | POST   | No       | 202    |

@@ -193,25 +193,27 @@ void Rebus::route_proxy(httproto_protocol *request, QLocalSocket *conn)
     if (!host_socket.waitForConnected(1000)) {
         fprintf(stderr, "CONNECTION TIMEOUT!\n");
         qDebug() << host_socket.error();
+        return;
     }
-        host_socket.waitForBytesWritten(3000);
-        // Send request.
-        this->request(
-            &host_socket,
-            QByteArray(request->content, request->content_length),
-            httproto_protocol_get_uri(request),
-            request->method
-        );
-        // Wait for timeout.
-        host_socket.waitForReadyRead(3000);
-        // Get response.
-        QByteArray resp = host_socket.readAll();
-        fprintf(stderr, "resp = %s\n", resp.constData());
-        httproto_protocol *response = httproto_protocol_create(HTTPROTO_RESPONSE);
-        httproto_protocol_parse(response, resp, resp.length());
-        fprintf(stderr, "parsed status: %d\n", response->status_code);
-        // Send response.
-        this->response(conn, QByteArray(response->content, request->content_length), response->status_code);
+
+    host_socket.waitForBytesWritten(3000);
+    // Send request.
+    this->request(
+        &host_socket,
+        QByteArray(request->content, request->content_length),
+        httproto_protocol_get_uri(request),
+        request->method
+    );
+    // Wait for timeout.
+    host_socket.waitForReadyRead(3000);
+    // Get response.
+    QByteArray resp = host_socket.readAll();
+    fprintf(stderr, "resp = %s\n", resp.constData());
+    httproto_protocol *response = httproto_protocol_create(HTTPROTO_RESPONSE);
+    httproto_protocol_parse(response, resp, resp.length());
+    fprintf(stderr, "parsed status: %d\n", response->status_code);
+    // Send response.
+    this->response(conn, QByteArray(response->content, request->content_length), response->status_code);
 }
 
 //====================
@@ -345,7 +347,7 @@ void Rebus::error_400(httproto_protocol *request, QLocalSocket *conn, const QStr
 
 void Rebus::error_404(struct httproto_protocol *request, QLocalSocket *conn)
 {
-    QByteArray detail("{ \"detail\": \"No route to " + QByteArray(httproto_protocol_get_path(request)) + "\"");
+    QByteArray detail("{ \"detail\": \"No route to " + QByteArray(httproto_protocol_get_path(request)) + "\"}");
 
     this->response(conn, detail, 404);
 }

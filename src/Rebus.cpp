@@ -213,7 +213,7 @@ void Rebus::route_proxy(httproto_protocol *request, QLocalSocket *conn)
     httproto_protocol_parse(response, resp, resp.length());
     fprintf(stderr, "parsed status: %d\n", response->status_code);
     // Send response.
-    this->response(conn, QByteArray(response->content, request->content_length), response->status_code);
+    this->response(conn, QByteArray(response->content, response->content_length), response->status_code);
 }
 
 //====================

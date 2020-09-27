@@ -5,5 +5,9 @@ default:
 	cd build ; qmake ../ReBus.pro
 	cd build ; make
 
+install:
+	strip build/rebus-server
+	cp build/rebus-server /usr/bin/
+
 clean:
 	rm -rf build

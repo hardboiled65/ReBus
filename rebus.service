@@ -1,0 +1,12 @@
+[Unit]
+Description=ReBus daemon
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/rebus-server
+PIDFile=/tmp/rebus.pid
+Restart=always
+RestartSec=0
+
+[Install]
+WantedBy=multi-user.target

@@ -8,6 +8,7 @@ default:
 install:
 	strip build/rebus-server
 	cp build/rebus-server /usr/bin/
+	cp rebus.service /usr/lib/systemd/user/
 
 clean:
 	rm -rf build
